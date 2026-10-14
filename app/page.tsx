@@ -110,14 +110,12 @@ export default function Home() {
     } else {
       setMensajeExito(true)
 
-      // 4. MENSAGE AUTOMÁTICO A WHATSAPP
-      const mensajeWA = `¡Hola! 👋 Acabo de agendar una cita en Glambook ✨%0A%0A📌 *Detalles de la Cita:*%0A👤 *Cliente:* ${nombre}%0A📱 *Teléfono:* ${telefono}%0A💅 *Servicio:* ${servicioSeleccionado.nombre} ($${servicioSeleccionado.precio})%0A📅 *Fecha:* ${fecha}%0A⏰ *Hora:* ${hora} hrs`
-      const urlWA = `https://wa.me/528714580364?text=${mensajeWA}`
+      // 4. MENSAJE LIMPIO A WHATSAPP (SIN CARACTERES RAROS)
+      const textoMensaje = `Hola! Acabo de agendar una cita en Glambook:\n\n- Cliente: ${nombre}\n- Teléfono: ${telefono}\n- Servicio: ${servicioSeleccionado.nombre} ($${servicioSeleccionado.precio})\n- Fecha: ${fecha}\n- Hora: ${hora} hrs`
+      const urlWA = `https://wa.me/528714580364?text=${encodeURIComponent(textoMensaje)}`
 
-      // Abrir WhatsApp en nueva pestaña/app
       window.open(urlWA, '_blank')
 
-      // Resetear formulario
       setNombre('')
       setTelefono('')
       setFecha('')
@@ -127,12 +125,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-pink-50/60 py-10 px-4 sm:px-6 flex flex-col items-center font-sans relative">
+    <main className="min-h-screen py-10 px-4 sm:px-6 flex flex-col items-center font-sans relative" style={{ backgroundColor: '#fff0f3' }}>
       <div className="w-full max-w-lg space-y-8 pb-24">
         
         {/* ENCABEZADO GLAMBOOK */}
         <div className="text-center space-y-2">
-          <span className="text-xs font-semibold uppercase tracking-widest text-pink-600 bg-pink-100/80 px-3 py-1 rounded-full">
+          <span className="text-xs font-semibold uppercase tracking-widest text-pink-600 bg-white/80 px-3.5 py-1 rounded-full shadow-sm">
             Estudio de Belleza
           </span>
           <h1 className="text-4xl font-extrabold text-neutral-800 tracking-tight font-serif italic">
@@ -163,7 +161,7 @@ export default function Home() {
                   className={`w-full p-4 rounded-3xl border transition-all duration-200 flex items-center justify-between text-left ${
                     estaElegido
                       ? 'border-pink-500 bg-white shadow-xl ring-2 ring-pink-500/20 translate-y-[-2px]'
-                      : 'border-pink-100/80 bg-white/90 hover:bg-white shadow-sm'
+                      : 'border-pink-200/60 bg-white/90 hover:bg-white shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-3.5">
@@ -294,7 +292,7 @@ export default function Home() {
           {mensajeExito && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-emerald-700 text-xs font-semibold space-y-1">
               <p className="text-sm font-bold">¡Cita agendada con éxito! 🎉</p>
-              <p className="text-emerald-600 font-normal">Redirigiendo a WhatsApp para enviar confirmación...</p>
+              <p className="text-emerald-600 font-normal">Abriendo WhatsApp para enviar confirmación...</p>
             </div>
           )}
 
@@ -308,7 +306,7 @@ export default function Home() {
           </button>
         </form>
 
-        {/* 3. GALERÍA DE TRABAJOS RECIENTES */}
+        {/* 3. GALERÍA DE TRABAJOS */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
@@ -342,7 +340,7 @@ export default function Home() {
           </div>
           <div className="space-y-2.5">
             {RESEÑAS.map((resena) => (
-              <div key={resena.id} className="p-4 bg-white/90 backdrop-blur-sm rounded-2xl border border-pink-100/70 shadow-sm space-y-1">
+              <div key={resena.id} className="p-4 bg-white/95 rounded-2xl border border-pink-100 shadow-sm space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-neutral-800">{resena.nombre}</span>
                   <div className="text-amber-400 text-xs">
@@ -357,7 +355,7 @@ export default function Home() {
 
       </div>
 
-      {/* BOTÓN FLOTANTE WHATSAPP */}
+      {/* BOTÓN WHATSAPP */}
       <a
         href="https://wa.me/528714580364?text=Hola,%20me%20gustaría%20más%20información%20sobre%20sus%20servicios%20de%20belleza"
         target="_blank"
