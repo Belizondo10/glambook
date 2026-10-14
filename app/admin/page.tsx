@@ -1,315 +1,255 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { useRouter } from 'next/navigation'
 
-interface Cita {
+interface Servicio {
   id: string
-  cliente_nombre: string
-  servicio_nombre: string
-  fecha_hora: string
-  cliente_telefono: string
+  nombre: string
+  duracion: string
   precio: number
-  estado?: string
+  icono: string
 }
 
-interface Bloqueo {
-  id: string
-  fecha_bloqueada: string
-  motivo?: string
-}
+const SERVICIOS: Servicio[] = [
+  { id: '1', nombre: 'Lash Lifting', duracion: '60 min', precio: 350, icono: '👁️' },
+  { id: '2', nombre: 'Maquillaje Social', duracion: '90 min', precio: 600, icono: '💄' },
+  { id: '3', nombre: 'Corte y Peinado', duracion: '50 min', precio: 400, icono: '✂️' },
+  { id: '4', nombre: 'Manicura Gelish', duracion: '60 min', precio: 300, icono: '💅' },
+]
 
-export default function AdminDashboard() {
-  const [citas, setCitas] = useState<Cita[]>([])
-  const [bloqueos, setBloqueos] = useState<Bloqueo[]>([])
-  const [nuevaFechaBloqueo, setNuevaFechaBloqueo] = useState('')
-  const [motivoBloqueo, setMotivoBloqueo] = useState('')
-  const [cargando, setCargando] = useState(true)
-  const router = useRouter()
+export default function Home() {
+  const [servicioSeleccionado, setServicioSeleccionado] = useState<Servicio | null>(null)
+  const [nombre, setNombre] = useState('')
+  const [telefono, setTelefono] = useState('')
+  const [fecha, setFecha] = useState('')
+  const [hora, setHora] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [mensajeExito, setMensajeExito] = useState(false)
+  const [errorForm, setErrorForm] = useState('')
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  useEffect(() => {
-    const verificarSesionYCargar = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
-
-      // Cargar citas iniciales
-      const { data: dataCitas } = await supabase
-        .from('citas')
-        .select('*')
-        .order('fecha_hora', { ascending: true })
-
-      if (dataCitas) setCitas(dataCitas)
-
-      // Cargar bloqueos iniciales
-      const { data: dataBloqueos } = await supabase
-        .from('horarios_bloqueados')
-        .select('*')
-        .order('fecha_bloqueada', { ascending: true })
-
-      if (dataBloqueos) setBloqueos(dataBloqueos)
-
-      setCargando(false)
-
-      // Escuchar cambios en tiempo real (Citas y Bloqueos)
-      const canal = supabase
-        .channel('admin_realtime')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'citas' },
-          (payload) => {
-            if (payload.eventType === 'INSERT') {
-              setCitas((prev) => [...prev, payload.new as Cita])
-            } else if (payload.eventType === 'DELETE') {
-              setCitas((prev) => prev.filter((c) => c.id !== payload.old.id))
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'horarios_bloqueados' },
-          (payload) => {
-            if (payload.eventType === 'INSERT') {
-              setBloqueos((prev) => [...prev, payload.new as Bloqueo])
-            } else if (payload.eventType === 'DELETE') {
-              setBloqueos((prev) => prev.filter((b) => b.id !== payload.old.id))
-            }
-          }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(canal)
-      }
-    }
-
-    verificarSesionYCargar()
-  }, [router, supabase])
-
-  const handleCerrarSesion = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
-  const handleCancelarCita = async (id: string) => {
-    const confirmar = confirm('¿Estás seguro de que deseas cancelar esta cita?')
-    if (!confirmar) return
-
-    const { error } = await supabase.from('citas').delete().eq('id', id)
-    if (error) {
-      alert('Error al cancelar la cita: ' + error.message)
-    }
-  }
-
-  const handleBloquearFecha = async (e: React.FormEvent) => {
+  const handleConfirmarCita = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!nuevaFechaBloqueo) return
+    setErrorForm('')
 
-    const { error } = await supabase.from('horarios_bloqueados').insert([
+    if (!servicioSeleccionado) {
+      setErrorForm('Por favor selecciona un servicio.')
+      return
+    }
+
+    if (!nombre || !telefono || !fecha || !hora) {
+      setErrorForm('Por favor completa todos los campos de la cita.')
+      return
+    }
+
+    setEnviando(true)
+
+    // 1. VERIFICAR BLOQUEO MANUAL DE FECHA (ADMIN)
+    const { data: bloqueos } = await supabase
+      .from('horarios_bloqueados')
+      .select('*')
+      .eq('fecha_bloqueada', fecha)
+
+    if (bloqueos && bloqueos.length > 0) {
+      setErrorForm('Lo sentimos, esta fecha se encuentra bloqueada por el establecimiento.')
+      setEnviando(false)
+      return
+    }
+
+    // 2. VERIFICAR DOBLE RESERVA AUTOMÁTICA (Misma fecha y hora exacta)
+    const { data: citasExistentes } = await supabase
+      .from('citas')
+      .select('*')
+      .eq('fecha', fecha)
+      .eq('hora', hora)
+
+    if (citasExistentes && citasExistentes.length > 0) {
+      setErrorForm('Este horario ya ha sido reservado por otro cliente. Por favor elige otra hora.')
+      setEnviando(false)
+      return
+    }
+
+    // 3. INSERTAR LA CITA EN LAS COLUMNAS EXISTENTES DE SUPABASE
+    const { error } = await supabase.from('citas').insert([
       {
-        fecha_bloqueada: nuevaFechaBloqueo,
-        motivo: motivoBloqueo || 'Día no disponible',
+        cliente_nombre: nombre,
+        cliente_telefono: telefono,
+        servicio: servicioSeleccionado.nombre,
+        fecha: fecha,
+        hora: hora,
       },
     ])
 
+    setEnviando(false)
+
     if (error) {
-      alert('Error al bloquear fecha: ' + error.message)
+      setErrorForm('Ocurrió un error al agendar: ' + error.message)
     } else {
-      setNuevaFechaBloqueo('')
-      setMotivoBloqueo('')
-      alert('Fecha bloqueada correctamente. Los clientes ya no podrán agendar ese día.')
+      setMensajeExito(true)
+      setNombre('')
+      setTelefono('')
+      setFecha('')
+      setHora('')
+      setServicioSeleccionado(null)
     }
-  }
-
-  const handleEliminarBloqueo = async (id: string) => {
-    const confirmar = confirm('¿Deseas habilitar nuevamente esta fecha?')
-    if (!confirmar) return
-
-    const { error } = await supabase.from('horarios_bloqueados').delete().eq('id', id)
-    if (error) {
-      alert('Error al desbloquear: ' + error.message)
-    }
-  }
-
-  const formatearFecha = (fechaIso: string) => {
-    if (!fechaIso) return 'Sin fecha'
-    const fecha = new Date(fechaIso)
-    return new Intl.DateTimeFormat('es-MX', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    }).format(fecha)
-  }
-
-  const formatearPrecio = (cantidad: number | undefined | null) => {
-    if (cantidad === undefined || cantidad === null) return '$0'
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      maximumFractionDigits: 0,
-    }).format(cantidad)
-  }
-
-  if (cargando) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-white">
-        Cargando panel de administración...
-      </div>
-    )
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white p-6 md:p-12 space-y-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <main className="min-h-screen bg-pink-50/40 py-8 px-4 sm:px-6 flex flex-col items-center justify-center font-sans">
+      <div className="w-full max-w-lg space-y-6">
         
-        {/* Encabezado */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-neutral-900 p-6 rounded-2xl border border-neutral-800 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-pink-500">Panel de Control - Glambook</h1>
-            <p className="text-sm text-neutral-400">Administración de citas y bloqueos de agenda</p>
-          </div>
-          <button
-            onClick={handleCerrarSesion}
-            className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-sm font-medium rounded-xl transition"
-          >
-            Cerrar Sesión
-          </button>
+        {/* Encabezado Glambook */}
+        <div className="text-center space-y-1">
+          <h1 className="text-3xl font-extrabold text-pink-600 tracking-tight">Glambook ✨</h1>
+          <p className="text-sm text-neutral-500 font-medium">Agenda tu cita de belleza en segundos</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Columna Izquierda: Tabla de Citas (Ocupa 2 espacios) */}
-          <div className="lg:col-span-2 bg-neutral-900 rounded-2xl border border-neutral-800 p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-neutral-200">
-              Citas Agendadas ({citas.length})
-            </h2>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-neutral-300">
-                <thead className="text-xs uppercase bg-neutral-950 text-neutral-400 border-b border-neutral-800">
-                  <tr>
-                    <th className="p-4">Cliente</th>
-                    <th className="p-4">Servicio</th>
-                    <th className="p-4">Fecha y Hora</th>
-                    <th className="p-4">Teléfono</th>
-                    <th className="p-4">Precio</th>
-                    <th className="p-4 text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-800">
-                  {citas.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center p-8 text-neutral-500">
-                        No hay citas agendadas por el momento.
-                      </td>
-                    </tr>
-                  ) : (
-                    citas.map((cita) => (
-                      <tr key={cita.id} className="hover:bg-neutral-800/50 transition">
-                        <td className="p-4 font-medium text-white">{cita.cliente_nombre}</td>
-                        <td className="p-4 text-pink-400 font-medium">{cita.servicio_nombre}</td>
-                        <td className="p-4 capitalize">{formatearFecha(cita.fecha_hora)}</td>
-                        <td className="p-4 font-mono text-neutral-300">{cita.cliente_telefono}</td>
-                        <td className="p-4 font-semibold text-emerald-400">
-                          {formatearPrecio(cita.precio)}
-                        </td>
-                        <td className="p-4 text-center">
-                          <button
-                            onClick={() => handleCancelarCita(cita.id)}
-                            className="px-3 py-1.5 bg-red-900/30 text-red-400 hover:bg-red-900/60 rounded-lg text-xs font-medium transition"
-                          >
-                            Cancelar
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Columna Derecha: Bloqueo de Fechas (Ocupa 1 espacio) */}
-          <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6 space-y-6">
-            <h2 className="text-lg font-semibold text-neutral-200">
-              Bloquear Fechas 🔒
-            </h2>
-
-            <form onSubmit={handleBloquearFecha} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs text-neutral-400 font-medium">Fecha a bloquear</label>
-                <input
-                  type="date"
-                  required
-                  value={nuevaFechaBloqueo}
-                  onChange={(e) => setNuevaFechaBloqueo(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-white text-sm outline-none focus:border-pink-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs text-neutral-400 font-medium">Motivo (Opcional)</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Vacaciones, Descanso"
-                  value={motivoBloqueo}
-                  onChange={(e) => setMotivoBloqueo(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-950 border border-neutral-800 text-white text-sm outline-none focus:border-pink-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-medium rounded-xl text-sm transition shadow-lg shadow-pink-600/20"
-              >
-                Bloquear Día
-              </button>
-            </form>
-
-            {/* Lista de días bloqueados activos */}
-            <div className="space-y-3 pt-4 border-t border-neutral-800">
-              <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-                Días bloqueados ({bloqueos.length})
-              </h3>
-              
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {bloqueos.length === 0 ? (
-                  <p className="text-xs text-neutral-500">No hay días bloqueados actualmente.</p>
-                ) : (
-                  bloqueos.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between p-3 rounded-xl bg-neutral-950 border border-neutral-800 text-sm">
-                      <div>
-                        <div className="font-semibold text-neutral-200">{b.fecha_bloqueada}</div>
-                        <div className="text-xs text-neutral-400">{b.motivo}</div>
-                      </div>
-                      <button
-                        onClick={() => handleEliminarBloqueo(b.id)}
-                        className="text-xs text-rose-400 hover:text-rose-300 font-medium px-2 py-1 bg-rose-950/40 rounded-lg transition"
-                      >
-                        Desbloquear
-                      </button>
+        {/* 1. Selección de Servicio */}
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider block px-1">
+            1. Selecciona tu servicio
+          </label>
+          <div className="grid grid-cols-1 gap-3">
+            {SERVICIOS.map((servicio) => {
+              const estaElegido = servicioSeleccionado?.id === servicio.id
+              return (
+                <button
+                  key={servicio.id}
+                  type="button"
+                  onClick={() => setServicioSeleccionado(servicio)}
+                  className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between text-left ${
+                    estaElegido
+                      ? 'border-pink-500 bg-white shadow-md ring-2 ring-pink-500/20'
+                      : 'border-pink-100 bg-white/80 hover:bg-white shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{servicio.icono}</span>
+                    <div>
+                      <h3 className="font-bold text-neutral-800 text-base">{servicio.nombre}</h3>
+                      <span className="text-xs text-neutral-400 font-medium">⏱️ {servicio.duracion}</span>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
+                  </div>
 
+                  <div className="text-right">
+                    <span className="text-lg font-extrabold text-pink-600">${servicio.precio}</span>
+                    {estaElegido && (
+                      <div className="text-[10px] bg-pink-100 text-pink-600 font-bold px-2 py-0.5 rounded-full mt-1">
+                        Elegido ✨
+                      </div>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* 2. Formulario de Datos */}
+        <form onSubmit={handleConfirmarCita} className="bg-white p-6 rounded-3xl border border-pink-100 shadow-xl space-y-5">
+          <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+            <h2 className="text-lg font-bold italic text-neutral-800">2. Agenda tu horario</h2>
+            <span className="text-xs text-pink-500 font-semibold bg-pink-50 px-2.5 py-1 rounded-full">Paso 2 de 2</span>
           </div>
 
-        </div>
+          {/* Servicio Seleccionado */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+              Servicio Seleccionado
+            </label>
+            <div className="w-full px-4 py-3 rounded-2xl border border-pink-200 bg-pink-50/30 font-medium text-pink-600 text-sm">
+              {servicioSeleccionado ? servicioSeleccionado.nombre : 'Selecciona un servicio arriba'}
+            </div>
+          </div>
+
+          {/* Nombre */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+              Tu Nombre
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Ej. Sofía Martínez"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-neutral-200 focus:border-pink-500 outline-none text-neutral-800 text-sm transition"
+            />
+          </div>
+
+          {/* Teléfono */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+              Teléfono / WhatsApp
+            </label>
+            <input
+              type="tel"
+              required
+              placeholder="Ej. 8714580364"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl border border-neutral-200 focus:border-pink-500 outline-none text-neutral-800 text-sm transition"
+            />
+          </div>
+
+          {/* FECHA Y HORA */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                Fecha
+              </label>
+              <input
+                type="date"
+                required
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="w-full px-3 py-3 rounded-2xl border border-neutral-200 focus:border-pink-500 outline-none text-neutral-800 text-sm bg-white transition"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
+                Hora
+              </label>
+              <input
+                type="time"
+                required
+                value={hora}
+                onChange={(e) => setHora(e.target.value)}
+                className="w-full px-3 py-3 rounded-2xl border border-neutral-200 focus:border-pink-500 outline-none text-neutral-800 text-sm bg-white transition"
+              />
+            </div>
+          </div>
+
+          {/* Mensajes de Error o Éxito */}
+          {errorForm && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-center text-red-600 text-xs font-semibold">
+              {errorForm}
+            </div>
+          )}
+
+          {mensajeExito && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-emerald-700 text-xs font-semibold">
+              ¡Cita agendada con éxito! 🎉 Te esperamos con gusto.
+            </div>
+          )}
+
+          {/* Botón de Confirmación */}
+          <button
+            type="submit"
+            disabled={enviando}
+            className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 active:scale-[0.99] text-white font-bold rounded-2xl shadow-lg shadow-pink-500/25 transition duration-200 disabled:opacity-50 text-base"
+          >
+            {enviando ? 'Verificando y Agendando...' : 'Confirmar Cita ✨'}
+          </button>
+        </form>
 
       </div>
-    </div>
+    </main>
   )
 }
