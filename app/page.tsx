@@ -109,6 +109,15 @@ export default function Home() {
       setErrorForm('Ocurrió un error al agendar: ' + error.message)
     } else {
       setMensajeExito(true)
+
+      // 4. MENSAGE AUTOMÁTICO A WHATSAPP
+      const mensajeWA = `¡Hola! 👋 Acabo de agendar una cita en Glambook ✨%0A%0A📌 *Detalles de la Cita:*%0A👤 *Cliente:* ${nombre}%0A📱 *Teléfono:* ${telefono}%0A💅 *Servicio:* ${servicioSeleccionado.nombre} ($${servicioSeleccionado.precio})%0A📅 *Fecha:* ${fecha}%0A⏰ *Hora:* ${hora} hrs`
+      const urlWA = `https://wa.me/528714580364?text=${mensajeWA}`
+
+      // Abrir WhatsApp en nueva pestaña/app
+      window.open(urlWA, '_blank')
+
+      // Resetear formulario
       setNombre('')
       setTelefono('')
       setFecha('')
@@ -118,29 +127,29 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-rose-50/30 py-10 px-4 sm:px-6 flex flex-col items-center font-sans relative">
+    <main className="min-h-screen bg-pink-50/60 py-10 px-4 sm:px-6 flex flex-col items-center font-sans relative">
       <div className="w-full max-w-lg space-y-8 pb-24">
         
-        {/* ENCABEZADO CON TIPOGRAFÍA Y ESTILO GLAMBOOK */}
+        {/* ENCABEZADO GLAMBOOK */}
         <div className="text-center space-y-2">
-          <span className="text-xs font-semibold uppercase tracking-widest text-rose-500 bg-rose-100/60 px-3 py-1 rounded-full">
+          <span className="text-xs font-semibold uppercase tracking-widest text-pink-600 bg-pink-100/80 px-3 py-1 rounded-full">
             Estudio de Belleza
           </span>
           <h1 className="text-4xl font-extrabold text-neutral-800 tracking-tight font-serif italic">
-            Glambook <span className="not-italic text-rose-500">✨</span>
+            Glambook <span className="not-italic text-pink-500">✨</span>
           </h1>
           <p className="text-sm text-neutral-500 font-medium max-w-xs mx-auto">
             Reserva tu espacio de consentimiento y resalta tu belleza natural
           </p>
         </div>
 
-        {/* 1. SELECCIÓN DE SERVICIO CON DESCRIPCIÓN Y PRECIOS */}
+        {/* 1. SELECCIÓN DE SERVICIO */}
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <label className="text-xs font-bold text-neutral-400 uppercase tracking-wider block">
               1. Selecciona tu servicio
             </label>
-            <span className="text-xs text-rose-500 font-medium">Exclusividad & Calidad</span>
+            <span className="text-xs text-pink-500 font-medium">Exclusividad & Calidad</span>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -151,18 +160,18 @@ export default function Home() {
                   key={servicio.id}
                   type="button"
                   onClick={() => setServicioSeleccionado(servicio)}
-                  className={`w-full p-4.5 rounded-3xl border transition-all duration-200 flex items-center justify-between text-left ${
+                  className={`w-full p-4 rounded-3xl border transition-all duration-200 flex items-center justify-between text-left ${
                     estaElegido
-                      ? 'border-rose-400 bg-white shadow-xl ring-2 ring-rose-400/20 translate-y-[-2px]'
-                      : 'border-rose-100/80 bg-white/90 hover:bg-white shadow-sm'
+                      ? 'border-pink-500 bg-white shadow-xl ring-2 ring-pink-500/20 translate-y-[-2px]'
+                      : 'border-pink-100/80 bg-white/90 hover:bg-white shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-3.5">
-                    <span className="text-3xl p-2 bg-rose-50 rounded-2xl">{servicio.icono}</span>
+                    <span className="text-3xl p-2 bg-pink-50 rounded-2xl">{servicio.icono}</span>
                     <div className="space-y-0.5">
                       <h3 className="font-bold text-neutral-800 text-base">{servicio.nombre}</h3>
                       <p className="text-xs text-neutral-400 font-normal">{servicio.descripcion}</p>
-                      <span className="inline-block text-[11px] text-rose-500 font-semibold bg-rose-50 px-2 py-0.5 rounded-md mt-1">
+                      <span className="inline-block text-[11px] text-pink-500 font-semibold bg-pink-50 px-2 py-0.5 rounded-md mt-1">
                         ⏱️ {servicio.duracion}
                       </span>
                     </div>
@@ -171,7 +180,7 @@ export default function Home() {
                   <div className="text-right pl-2">
                     <span className="text-xl font-black text-neutral-800">${servicio.precio}</span>
                     {estaElegido && (
-                      <div className="text-[10px] bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full mt-1 shadow-sm">
+                      <div className="text-[10px] bg-pink-500 text-white font-bold px-2 py-0.5 rounded-full mt-1 shadow-sm">
                         Elegido ✨
                       </div>
                     )}
@@ -182,14 +191,14 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 2. FORMULARIO Y SELECCIÓN VISUAL DE HORARIOS */}
-        <form onSubmit={handleConfirmarCita} className="bg-white p-6 sm:p-7 rounded-[2.5rem] border border-rose-100 shadow-2xl shadow-rose-900/5 space-y-6">
-          <div className="flex items-center justify-between border-b border-rose-100/60 pb-4">
+        {/* 2. FORMULARIO Y SELECCIÓN DE HORARIOS */}
+        <form onSubmit={handleConfirmarCita} className="bg-white p-6 sm:p-7 rounded-[2.5rem] border border-pink-100 shadow-2xl space-y-6">
+          <div className="flex items-center justify-between border-b border-pink-100/60 pb-4">
             <div>
               <h2 className="text-xl font-bold font-serif italic text-neutral-800">2. Agenda tu cita</h2>
               <p className="text-xs text-neutral-400">Completa tus datos y horario preferido</p>
             </div>
-            <span className="text-xs text-rose-600 font-bold bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100">
+            <span className="text-xs text-pink-600 font-bold bg-pink-50 px-3 py-1.5 rounded-full border border-pink-100">
               Paso 2 de 2
             </span>
           </div>
@@ -199,7 +208,7 @@ export default function Home() {
             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
               Servicio Seleccionado
             </label>
-            <div className="w-full px-4 py-3.5 rounded-2xl border border-rose-200/80 bg-rose-50/40 font-semibold text-rose-600 text-sm flex items-center justify-between">
+            <div className="w-full px-4 py-3.5 rounded-2xl border border-pink-200/80 bg-pink-50/40 font-semibold text-pink-600 text-sm flex items-center justify-between">
               <span>{servicioSeleccionado ? servicioSeleccionado.nombre : 'Elige un servicio arriba'}</span>
               {servicioSeleccionado && <span className="font-bold">${servicioSeleccionado.precio}</span>}
             </div>
@@ -216,7 +225,7 @@ export default function Home() {
               placeholder="Ej. Sofía Martínez"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              className="w-full px-4 py-3.5 rounded-2xl border border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 outline-none text-neutral-800 text-sm transition"
+              className="w-full px-4 py-3.5 rounded-2xl border border-neutral-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-400/20 outline-none text-neutral-800 text-sm transition"
             />
           </div>
 
@@ -231,7 +240,7 @@ export default function Home() {
               placeholder="Ej. 8714580364"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
-              className="w-full px-4 py-3.5 rounded-2xl border border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 outline-none text-neutral-800 text-sm transition"
+              className="w-full px-4 py-3.5 rounded-2xl border border-neutral-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-400/20 outline-none text-neutral-800 text-sm transition"
             />
           </div>
 
@@ -245,11 +254,11 @@ export default function Home() {
               required
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
-              className="w-full px-4 py-3.5 rounded-2xl border border-neutral-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 outline-none text-neutral-800 text-sm bg-white transition"
+              className="w-full px-4 py-3.5 rounded-2xl border border-neutral-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-400/20 outline-none text-neutral-800 text-sm bg-white transition"
             />
           </div>
 
-          {/* SELECCIÓN VISUAL DE HORARIOS (BOTONES) */}
+          {/* Horarios */}
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider block">
               Selecciona la Hora
@@ -264,8 +273,8 @@ export default function Home() {
                     onClick={() => setHora(h)}
                     className={`py-2.5 px-3 rounded-xl text-xs font-semibold border transition-all ${
                       seleccionado
-                        ? 'bg-rose-500 text-white border-rose-500 shadow-md shadow-rose-500/20'
-                        : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:border-rose-300'
+                        ? 'bg-pink-500 text-white border-pink-500 shadow-md shadow-pink-500/20'
+                        : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:border-pink-300'
                     }`}
                   >
                     {h} hrs
@@ -275,9 +284,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* MENSAJES DE ERROR O ÉXITO */}
+          {/* Errores o Éxito */}
           {errorForm && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-center text-rose-600 text-xs font-semibold">
+            <div className="p-3.5 bg-pink-50 border border-pink-200 rounded-2xl text-center text-pink-600 text-xs font-semibold">
               {errorForm}
             </div>
           )}
@@ -285,15 +294,15 @@ export default function Home() {
           {mensajeExito && (
             <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center text-emerald-700 text-xs font-semibold space-y-1">
               <p className="text-sm font-bold">¡Cita agendada con éxito! 🎉</p>
-              <p className="text-emerald-600 font-normal">Te esperamos con mucho gusto para atenderte.</p>
+              <p className="text-emerald-600 font-normal">Redirigiendo a WhatsApp para enviar confirmación...</p>
             </div>
           )}
 
-          {/* BOTÓN DE CONFIRMACIÓN */}
+          {/* Botón */}
           <button
             type="submit"
             disabled={enviando}
-            className="w-full py-4 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 active:scale-[0.99] text-white font-bold rounded-2xl shadow-xl shadow-rose-500/25 transition duration-200 disabled:opacity-50 text-base tracking-wide"
+            className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 active:scale-[0.99] text-white font-bold rounded-2xl shadow-xl shadow-pink-500/25 transition duration-200 disabled:opacity-50 text-base tracking-wide"
           >
             {enviando ? 'Verificando y Agendando...' : 'Confirmar Mi Cita ✨'}
           </button>
@@ -305,11 +314,11 @@ export default function Home() {
             <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
               ✨ Galería de Resultados
             </h2>
-            <span className="text-xs text-rose-500 font-medium">Trabajos Recientes</span>
+            <span className="text-xs text-pink-500 font-medium">Trabajos Recientes</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {GALERIA.map((item) => (
-              <div key={item.id} className="relative group overflow-hidden rounded-2xl aspect-square shadow-sm border border-rose-100 bg-white">
+              <div key={item.id} className="relative group overflow-hidden rounded-2xl aspect-square shadow-sm border border-pink-100 bg-white">
                 <img
                   src={item.imagen}
                   alt={item.titulo}
@@ -323,7 +332,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 4. SECCIÓN DE OPINIONES DE CLIENTAS */}
+        {/* 4. OPINIONES DE CLIENTAS */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
@@ -333,7 +342,7 @@ export default function Home() {
           </div>
           <div className="space-y-2.5">
             {RESEÑAS.map((resena) => (
-              <div key={resena.id} className="p-4 bg-white/90 backdrop-blur-sm rounded-2xl border border-rose-100/70 shadow-sm space-y-1">
+              <div key={resena.id} className="p-4 bg-white/90 backdrop-blur-sm rounded-2xl border border-pink-100/70 shadow-sm space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-neutral-800">{resena.nombre}</span>
                   <div className="text-amber-400 text-xs">
@@ -348,7 +357,7 @@ export default function Home() {
 
       </div>
 
-      {/* BOTÓN FLOTANTE DE WHATSAPP */}
+      {/* BOTÓN FLOTANTE WHATSAPP */}
       <a
         href="https://wa.me/528714580364?text=Hola,%20me%20gustaría%20más%20información%20sobre%20sus%20servicios%20de%20belleza"
         target="_blank"
