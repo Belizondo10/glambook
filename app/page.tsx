@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
 interface Servicio {
@@ -16,6 +16,12 @@ const SERVICIOS: Servicio[] = [
   { id: '2', nombre: 'Maquillaje Social', duracion: '90 min', precio: 600, icono: '💄' },
   { id: '3', nombre: 'Corte y Peinado', duracion: '50 min', precio: 400, icono: '✂️' },
   { id: '4', nombre: 'Manicura Gelish', duracion: '60 min', precio: 300, icono: '💅' },
+]
+
+const GALERIA = [
+  { id: 1, titulo: 'Lash Lifting Natural', imagen: 'https://images.unsplash.com/photo-1583001931096-959e9a1a6223?auto=format&fit=crop&q=80&w=500' },
+  { id: 2, titulo: 'Glam Makeup', imagen: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&q=80&w=500' },
+  { id: 3, titulo: 'Uñas Gelish', imagen: 'https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&q=80&w=500' },
 ]
 
 export default function Home() {
@@ -48,14 +54,12 @@ export default function Home() {
     }
 
     setEnviando(true)
-    const fechaHoraISO = new Date(`${fecha}T${hora}:00`).toISOString()
-    const fechaSolo = fecha // Formato YYYY-MM-DD
 
     // 1. VERIFICAR BLOQUEO MANUAL DE FECHA (ADMIN)
-    const { data: bloqueos, error: errBloqueo } = await supabase
+    const { data: bloqueos } = await supabase
       .from('horarios_bloqueados')
       .select('*')
-      .eq('fecha_bloqueada', fechaSolo)
+      .eq('fecha_bloqueada', fecha)
 
     if (bloqueos && bloqueos.length > 0) {
       setErrorForm('Lo sentimos, esta fecha se encuentra bloqueada por el establecimiento.')
@@ -63,11 +67,12 @@ export default function Home() {
       return
     }
 
-    // 2. VERIFICAR DOBLE RESERVA AUTOMÁTICA (Misma fecha y hora exacta)
-    const { data: citasExistentes, error: errCitas } = await supabase
+    // 2. VERIFICAR DOBLE RESERVA AUTOMÁTICA
+    const { data: citasExistentes } = await supabase
       .from('citas')
       .select('*')
-      .eq('fecha_hora', fechaHoraISO)
+      .eq('fecha', fecha)
+      .eq('hora', hora)
 
     if (citasExistentes && citasExistentes.length > 0) {
       setErrorForm('Este horario ya ha sido reservado por otro cliente. Por favor elige otra hora.')
@@ -75,14 +80,14 @@ export default function Home() {
       return
     }
 
-    // 3. INSERTAR LA CITA SI TODO ESTÁ LIBRE
+    // 3. INSERTAR CITA
     const { error } = await supabase.from('citas').insert([
       {
         cliente_nombre: nombre,
         cliente_telefono: telefono,
-        servicio_nombre: servicioSeleccionado.nombre,
-        precio: servicioSeleccionado.precio,
-        fecha_hora: fechaHoraISO,
+        servicio: servicioSeleccionado.nombre,
+        fecha: fecha,
+        hora: hora,
       },
     ])
 
@@ -101,8 +106,8 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-pink-50/40 py-8 px-4 sm:px-6 flex flex-col items-center justify-center font-sans">
-      <div className="w-full max-w-lg space-y-6">
+    <main className="min-h-screen bg-pink-50/40 py-8 px-4 sm:px-6 flex flex-col items-center justify-center font-sans relative">
+      <div className="w-full max-w-lg space-y-6 pb-20">
         
         {/* Encabezado Glambook */}
         <div className="text-center space-y-1">
@@ -158,7 +163,6 @@ export default function Home() {
             <span className="text-xs text-pink-500 font-semibold bg-pink-50 px-2.5 py-1 rounded-full">Paso 2 de 2</span>
           </div>
 
-          {/* Servicio Seleccionado */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
               Servicio Seleccionado
@@ -168,7 +172,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Nombre */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
               Tu Nombre
@@ -183,7 +186,6 @@ export default function Home() {
             />
           </div>
 
-          {/* Teléfono */}
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
               Teléfono / WhatsApp
@@ -198,7 +200,6 @@ export default function Home() {
             />
           </div>
 
-          {/* FECHA Y HORA */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
@@ -227,7 +228,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Mensajes de Error o Éxito */}
           {errorForm && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-center text-red-600 text-xs font-semibold">
               {errorForm}
@@ -240,7 +240,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Botón de Confirmación */}
           <button
             type="submit"
             disabled={enviando}
@@ -250,7 +249,39 @@ export default function Home() {
           </button>
         </form>
 
+        {/* 3. GALERÍA DE TRABAJOS RECIENTES */}
+        <div className="space-y-3 pt-4">
+          <h2 className="text-xs font-bold text-neutral-400 uppercase tracking-wider px-1">
+            ✨ Nuestros Trabajos
+          </h2>
+          <div className="grid grid-cols-3 gap-3">
+            {GALERIA.map((item) => (
+              <div key={item.id} className="relative group overflow-hidden rounded-2xl aspect-square shadow-sm border border-pink-100 bg-white">
+                <img
+                  src={item.imagen}
+                  alt={item.titulo}
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-end p-2">
+                  <span className="text-[11px] font-medium text-white">{item.titulo}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
       </div>
+
+      {/* Botón Flotante de WhatsApp */}
+      <a
+        href="https://wa.me/528714580364?text=Hola,%20me%20gustaría%20más%20información%20sobre%20sus%20servicios%20de%20belleza"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-5 right-5 z-50 bg-emerald-500 hover:bg-emerald-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110"
+        title="Contáctanos por WhatsApp"
+      >
+        <span className="text-2xl">💬</span>
+      </a>
     </main>
   )
 }
